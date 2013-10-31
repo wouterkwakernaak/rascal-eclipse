@@ -37,7 +37,9 @@ import org.eclipse.imp.pdb.facts.type.Type;
 import org.eclipse.imp.pdb.facts.type.TypeFactory;
 import org.eclipse.imp.services.IAnnotationTypeInfo;
 import org.eclipse.imp.services.ILanguageSyntaxProperties;
+import org.eclipse.jface.text.DocumentEvent;
 import org.eclipse.jface.text.IDocument;
+import org.eclipse.jface.text.IDocumentListener;
 import org.eclipse.jface.text.IRegion;
 import org.rascalmpl.eclipse.Activator;
 import org.rascalmpl.eclipse.editor.NodeLocator;
@@ -61,6 +63,8 @@ public class TermParseController implements IParseController {
 	private Language language;
 	private ICallableValue parser;
 	private IDocument document;
+	private boolean docChanged;
+	IDocumentListener listener;
 	private ICallableValue annotator;
 	private ParseJob job;
 	private final static IValueFactory VF = ValueFactoryFactory.getValueFactory(); 
@@ -124,6 +128,13 @@ public class TermParseController implements IParseController {
 		}
 
 		this.job = new ParseJob(language.getName() + " parser", VF.sourceLocation(location), handler);
+		
+		listener = new IDocumentListener() {
+            public void documentAboutToBeChanged(DocumentEvent event) {}
+            public void documentChanged(DocumentEvent event) {
+            	docChanged = true;
+            }
+        };
 	}
 	
 	public IDocument getDocument() {
@@ -134,7 +145,9 @@ public class TermParseController implements IParseController {
 		if (doc == null) {
 			return null;
 		}
+		doc.addDocumentListener(listener);
 		this.document = doc;
+		docChanged = false;
 		return parse(doc.get(), monitor);
 	}
 	
