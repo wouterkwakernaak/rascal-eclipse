@@ -17,6 +17,10 @@ package org.rascalmpl.eclipse.terms;
 import java.net.URI;
 import java.util.Iterator;
 
+import lapd.databases.neo4j.GraphDbMappingException;
+import lapd.databases.neo4j.GraphDbValueIO;
+import lapd.databases.neo4j.IdNotFoundException;
+
 import org.eclipse.core.runtime.Assert;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -35,6 +39,7 @@ import org.eclipse.imp.pdb.facts.IValueFactory;
 import org.eclipse.imp.pdb.facts.exceptions.FactTypeUseException;
 import org.eclipse.imp.pdb.facts.type.Type;
 import org.eclipse.imp.pdb.facts.type.TypeFactory;
+import org.eclipse.imp.pdb.facts.type.TypeStore;
 import org.eclipse.imp.services.IAnnotationTypeInfo;
 import org.eclipse.imp.services.ILanguageSyntaxProperties;
 import org.eclipse.jface.text.DocumentEvent;
@@ -147,8 +152,28 @@ public class TermParseController implements IParseController {
 		}
 		doc.addDocumentListener(listener);
 		this.document = doc;
+		GraphDbValueIO graphDbValueIO = GraphDbValueIO.getInstance();
+		graphDbValueIO.init(VF);
+		String id = path.toString() + "ParseTreePlusRandomStuffge5w747525757XD";
+		if (!docChanged) {			
+			try {
+				TypeStore ts = parser.getEval().__getRootScope().getStore();
+				parseTree = (IConstructor) graphDbValueIO.read(id, ts);
+				return parseTree;
+			} catch (IdNotFoundException e) {
+			} catch (GraphDbMappingException e) {
+				System.out.println(e.getStackTrace());
+			}	
+		}
+		
+		parseTree = parse(doc.get(), monitor);
+		try {
+			graphDbValueIO.write(id, parseTree, true);
+		} catch (GraphDbMappingException e) {
+			System.out.println(e.getStackTrace());
+		}		
 		docChanged = false;
-		return parse(doc.get(), monitor);
+		return parseTree;
 	}
 	
 	private class ParseJob extends Job {
@@ -228,7 +253,7 @@ public class TermParseController implements IParseController {
 		}
 	}
 	
-	public synchronized Object parse(String input, IProgressMonitor monitor){
+	public synchronized IConstructor parse(String input, IProgressMonitor monitor){
 		parseTree = null;
 		try {
 			job.initialize(input);
