@@ -144,6 +144,7 @@ public class RascalScriptInterpreter extends Job implements IInterpreter {
 		synchronized(eval){
 			eval.doImport(null, "IO");   
 			eval.doImport(null, "ParseTree");
+			eval.doImport(null, "Message");
 		}
 		this.eval = eval;
 		this.reloader = new ModuleReloader(eval);
