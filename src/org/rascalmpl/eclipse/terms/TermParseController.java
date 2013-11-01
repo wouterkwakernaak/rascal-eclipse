@@ -152,28 +152,9 @@ public class TermParseController implements IParseController {
 		}
 		doc.addDocumentListener(listener);
 		this.document = doc;
-		GraphDbValueIO graphDbValueIO = GraphDbValueIO.getInstance();
-		graphDbValueIO.init(VF);
-		String id = path.toString() + "ParseTreePlusRandomStuffge5w747525757XDs";
-		if (!docChanged) {			
-			try {
-				TypeStore ts = parser.getEval().__getRootScope().getStore();
-				parseTree = (IConstructor) graphDbValueIO.read(id, ts);
-				return parseTree;
-			} catch (IdNotFoundException e) {
-			} catch (GraphDbMappingException e) {
-				System.out.println(e.getStackTrace());
-			}	
-		}
-		
-		parseTree = parse(doc.get(), monitor);
-		try {
-			graphDbValueIO.write(id, parseTree, true);
-		} catch (GraphDbMappingException e) {
-			System.out.println(e.getStackTrace());
-		}		
+		Object t = parse(doc.get(), monitor);
 		docChanged = false;
-		return parseTree;
+		return t;
 	}
 	
 	private class ParseJob extends Job {
@@ -198,6 +179,19 @@ public class TermParseController implements IParseController {
 		
 		@Override
 		protected IStatus run(IProgressMonitor monitor) {
+			GraphDbValueIO graphDbValueIO = GraphDbValueIO.getInstance();
+			graphDbValueIO.init(VF);
+			String id = path.toString() + "ParseTreePlusRandomStuffge5w747525757XDs";
+			if (!docChanged) {			
+				try {
+					TypeStore ts = parser.getEval().__getRootScope().getStore();
+					parseTree = (IConstructor) graphDbValueIO.read(id, ts);
+				} catch (IdNotFoundException e) {
+				} catch (GraphDbMappingException e) {
+					System.out.println(e.getStackTrace());
+				}	
+			}
+			else {			
 			RascalMonitor rm = new RascalMonitor(monitor, warnings);
 			rm.startJob("Parsing Term", 105);
 			
@@ -215,6 +209,14 @@ public class TermParseController implements IParseController {
 							parseTree = newTree;
 						}
 					}
+					try {
+						long start = System.currentTimeMillis();
+						graphDbValueIO.write(id, parseTree, true);
+						long end = System.currentTimeMillis();
+						System.out.println(end - start);
+					} catch (GraphDbMappingException e) {
+						System.out.println(e.getStackTrace());
+					}	
 				}
 			}
 			catch (ParseError pe){
@@ -247,6 +249,7 @@ public class TermParseController implements IParseController {
 			}
 			finally {
 				rm.endJob(true);
+			}
 			}
 			
 			return Status.OK_STATUS;
