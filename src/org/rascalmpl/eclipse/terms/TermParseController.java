@@ -17,10 +17,6 @@ package org.rascalmpl.eclipse.terms;
 import java.net.URI;
 import java.util.Iterator;
 
-import lapd.databases.neo4j.GraphDbMappingException;
-import lapd.databases.neo4j.GraphDbValueIO;
-import lapd.databases.neo4j.IdNotFoundException;
-
 import org.eclipse.core.runtime.Assert;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -39,12 +35,9 @@ import org.eclipse.imp.pdb.facts.IValueFactory;
 import org.eclipse.imp.pdb.facts.exceptions.FactTypeUseException;
 import org.eclipse.imp.pdb.facts.type.Type;
 import org.eclipse.imp.pdb.facts.type.TypeFactory;
-import org.eclipse.imp.pdb.facts.type.TypeStore;
 import org.eclipse.imp.services.IAnnotationTypeInfo;
 import org.eclipse.imp.services.ILanguageSyntaxProperties;
-import org.eclipse.jface.text.DocumentEvent;
 import org.eclipse.jface.text.IDocument;
-import org.eclipse.jface.text.IDocumentListener;
 import org.eclipse.jface.text.IRegion;
 import org.rascalmpl.eclipse.Activator;
 import org.rascalmpl.eclipse.editor.NodeLocator;
@@ -68,8 +61,6 @@ public class TermParseController implements IParseController {
 	private Language language;
 	private ICallableValue parser;
 	private IDocument document;
-	private boolean docChanged;
-	IDocumentListener listener;
 	private ICallableValue annotator;
 	private ParseJob job;
 	private final static IValueFactory VF = ValueFactoryFactory.getValueFactory(); 
@@ -133,13 +124,6 @@ public class TermParseController implements IParseController {
 		}
 
 		this.job = new ParseJob(language.getName() + " parser", VF.sourceLocation(location), handler);
-		
-		listener = new IDocumentListener() {
-            public void documentAboutToBeChanged(DocumentEvent event) {}
-            public void documentChanged(DocumentEvent event) {
-            	docChanged = true;
-            }
-        };
 	}
 	
 	public IDocument getDocument() {
@@ -150,10 +134,8 @@ public class TermParseController implements IParseController {
 		if (doc == null) {
 			return null;
 		}
-		doc.addDocumentListener(listener);
 		this.document = doc;
 		Object t = parse(doc.get(), monitor);
-		docChanged = false;
 		return t;
 	}
 	
@@ -178,20 +160,7 @@ public class TermParseController implements IParseController {
 		}
 		
 		@Override
-		protected IStatus run(IProgressMonitor monitor) {
-			GraphDbValueIO graphDbValueIO = GraphDbValueIO.getInstance();
-			graphDbValueIO.init(VF);
-			String id = path.toString() + "ParseTreePlusRandomStuffge5w747525757XDs";
-			if (!docChanged) {			
-				try {
-					TypeStore ts = parser.getEval().__getRootScope().getStore();
-					parseTree = (IConstructor) graphDbValueIO.read(id, ts);
-				} catch (IdNotFoundException e) {
-				} catch (GraphDbMappingException e) {
-					System.out.println(e.getStackTrace());
-				}	
-			}
-			else {			
+		protected IStatus run(IProgressMonitor monitor) {		
 			RascalMonitor rm = new RascalMonitor(monitor, warnings);
 			rm.startJob("Parsing Term", 105);
 			
@@ -209,14 +178,6 @@ public class TermParseController implements IParseController {
 							parseTree = newTree;
 						}
 					}
-					try {
-						long start = System.currentTimeMillis();
-						graphDbValueIO.write(id, parseTree, true);
-						long end = System.currentTimeMillis();
-						System.out.println(end - start);
-					} catch (GraphDbMappingException e) {
-						System.out.println(e.getStackTrace());
-					}	
 				}
 			}
 			catch (ParseError pe){
@@ -249,7 +210,6 @@ public class TermParseController implements IParseController {
 			}
 			finally {
 				rm.endJob(true);
-			}
 			}
 			
 			return Status.OK_STATUS;
